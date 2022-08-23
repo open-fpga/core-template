@@ -258,15 +258,66 @@ assign port_tran_sck_dir = 1'b0;    // clock direction can change
 assign port_tran_sd = 1'bz;
 assign port_tran_sd_dir = 1'b0;     // SD is input and not used
 
+// tie off the rest of the pins we are not using
+assign cram0_a = 'h0;
+assign cram0_dq = {16{1'bZ}};
+assign cram0_clk = 0;
+assign cram0_adv_n = 1;
+assign cram0_cre = 0;
+assign cram0_ce0_n = 1;
+assign cram0_ce1_n = 1;
+assign cram0_oe_n = 1;
+assign cram0_we_n = 1;
+assign cram0_ub_n = 1;
+assign cram0_lb_n = 1;
+
+assign cram1_a = 'h0;
+assign cram1_dq = {16{1'bZ}};
+assign cram1_clk = 0;
+assign cram1_adv_n = 1;
+assign cram1_cre = 0;
+assign cram1_ce0_n = 1;
+assign cram1_ce1_n = 1;
+assign cram1_oe_n = 1;
+assign cram1_we_n = 1;
+assign cram1_ub_n = 1;
+assign cram1_lb_n = 1;
+
+assign dram_a = 'h0;
+assign dram_ba = 'h0;
+assign dram_dq = {16{1'bZ}};
+assign dram_dqm = 'h0;
+assign dram_clk = 'h0;
+assign dram_cke = 'h0;
+assign dram_ras_n = 'h1;
+assign dram_cas_n = 'h1;
+assign dram_we_n = 'h1;
+
+assign sram_a = 'h0;
+assign sram_dq = {16{1'bZ}};
+assign sram_oe_n  = 1;
+assign sram_we_n  = 1;
+assign sram_ub_n  = 1;
+assign sram_lb_n  = 1;
+
+assign dbg_tx = 1'bZ;
+assign user1 = 1'bZ;
+assign aux_scl = 1'bZ;
+assign vpll_feed = 1'bZ;
+
 
 // for bridge write data, we just broadcast it to all bus devices
 // for bridge read data, we have to mux it
 // add your own devices here
 always @(*) begin
     casex(bridge_addr)
+    default: begin
+        bridge_rd_data <= 0;
+    end
     32'h10xxxxxx: begin
         // example
         // bridge_rd_data <= example_device_data;
+        bridge_rd_data <= 0;
     end
     32'hF8xxxxxx: begin
         bridge_rd_data <= cmd_bridge_rd_data;
@@ -315,6 +366,8 @@ end
     wire            savestate_load_busy;
     wire            savestate_load_ok;
     wire            savestate_load_err;
+    
+    wire            osnotify_inmenu;
 
 // bridge target commands
 // synchronous to clk_74a
@@ -372,6 +425,8 @@ core_bridge_cmd icb (
     .savestate_load_ok      ( savestate_load_ok ),
     .savestate_load_err     ( savestate_load_err ),
 
+    .osnotify_inmenu        ( osnotify_inmenu ),
+    
     .datatable_addr         ( datatable_addr ),
     .datatable_wren         ( datatable_wren ),
     .datatable_data         ( datatable_data ),

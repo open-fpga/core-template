@@ -50,6 +50,8 @@ input   wire    [31:0]  savestate_addr,
 input   wire    [31:0]  savestate_size,
 input   wire    [31:0]  savestate_maxloadsize,
 
+output  reg             osnotify_inmenu,
+
 output  reg             savestate_start,        // core should detect rising edge on this,
 input   wire            savestate_start_ack,    // and then assert ack for at least 1 cycle
 input   wire            savestate_start_busy,   // assert constantly while in progress after ack
@@ -163,6 +165,7 @@ initial begin
     dataslot_allcomplete <= 0;
     savestate_start <= 0;
     savestate_load <= 0;
+    osnotify_inmenu <= 0;
     status_setup_done_queue <= 0;
 end
     
@@ -297,6 +300,7 @@ always @(posedge clk) begin
         end
         16'h0080: begin
             // Data slot request read
+            dataslot_allcomplete <= 0;
             dataslot_requestread <= 1;
             dataslot_requestread_id <= host_20[15:0];
             if(dataslot_requestread_ack) begin
@@ -307,6 +311,7 @@ always @(posedge clk) begin
         end
         16'h0082: begin
             // Data slot request write
+            dataslot_allcomplete <= 0;
             dataslot_requestwrite <= 1;
             dataslot_requestwrite_id <= host_20[15:0];
             if(dataslot_requestwrite_ack) begin
@@ -363,6 +368,11 @@ always @(posedge clk) begin
             end else begin
                 hstate <= ST_DONE_CODE;
             end
+        end
+        16'h00B0: begin
+            // OS Notify: Menu State
+            osnotify_inmenu <= host_20[0];
+            hstate <= ST_DONE_OK;
         end
         default: begin
             hstate <= ST_DONE_ERR;

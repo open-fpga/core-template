@@ -8,7 +8,11 @@
 // laws, including, but not limited to, U.S. copyright law. All rights are
 // reserved. By using the APF code you are agreeing to the terms of the End User
 // License Agreement (“EULA”) located at [https://www.analogue.link/pocket-eula]
-// and incorporated herein by reference.
+// and incorporated herein by reference. To the extent any use of the APF requires 
+// application of the MIT License or the GNU General Public License and terms of 
+// this APF Software License Agreement and EULA are inconsistent with such license, 
+// the applicable terms of the MIT License or the GNU General Public License, as 
+// applicable, will prevail.
 
 // THE SOFTWARE IS PROVIDED "AS-IS" AND WE EXPRESSLY DISCLAIM ANY IMPLIED
 // WARRANTIES TO THE FULLEST EXTENT PROVIDED BY LAW, INCLUDING BUT NOT LIMITED TO,
@@ -73,7 +77,7 @@ input   wire            phy_spiss
 synch_3 s00(reset_n, reset_n_s, clk);
 
     wire endian_little_s;
-synch_3 s81(endian_little, endian_little_s, clk);
+synch_3 s01(endian_little, endian_little_s, clk);
 
     wire phy_spiss_s, phy_spiss_r, phy_spiss_f;
 synch_3 s02(phy_spiss, phy_spiss_s, clk, phy_spiss_r, phy_spiss_f);
@@ -89,7 +93,6 @@ synch_3 s02(phy_spiss, phy_spiss_s, clk, phy_spiss_r, phy_spiss_f);
     localparam  ST_WRITE_0      = 'd6;  
     localparam  ST_WRITE_1      = 'd7;  
     localparam  ST_WRITE_2      = 'd8;  
-    localparam  ST_WRITE_3      = 'd9;  
     localparam  ST_ADDR_0       = 'd9;
     
     reg [1:0]   addr_cnt;
@@ -99,8 +102,6 @@ synch_3 s02(phy_spiss, phy_spiss_s, clk, phy_spiss_r, phy_spiss_f);
     // synchronize rd byte flag's rising edge into clk
     wire rx_byte_done_s, rx_byte_done_r;
 synch_3 s03(rx_byte_done, rx_byte_done_s, clk, rx_byte_done_r);
-
-    reg         bursting;
     
     reg [4:0]   spis;
     localparam  ST_SIDLE        = 'd1;
@@ -167,6 +168,7 @@ always @(posedge clk) begin
                 pmp_addr[ 7: 0] <= {rx_byte_2[7:2], 2'b00};
                 // address is latched
                 if( rx_byte_2[0] ) begin
+					data_cnt <= 0;
                     state <= ST_WRITE_0;
                 end else begin
                     data_cnt <= 0;
@@ -320,7 +322,7 @@ always @(posedge phy_spiclk or posedge phy_spiss) begin
         1: begin    rx_dat[5:4] <= {phy_spimosi, phy_spimiso}; rx_latch_idx <= 2;   end
         2: begin    rx_dat[3:2] <= {phy_spimosi, phy_spimiso}; rx_latch_idx <= 3;   end
         3: begin 
-            // last bit of the byte
+            // final 2 bits
             rx_byte <= {rx_dat[7:2], phy_spimosi, phy_spimiso};
             rx_latch_idx <= 0;
             rx_byte_done <= 1;
