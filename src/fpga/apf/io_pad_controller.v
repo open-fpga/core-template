@@ -45,10 +45,10 @@ input   wire            reset_n,
 
 inout   reg             pad_1wire,
 
-output  reg     [15:0]  cont1_key,
-output  reg     [15:0]  cont2_key,
-output  reg     [15:0]  cont3_key,
-output  reg     [15:0]  cont4_key,
+output  reg     [31:0]  cont1_key,
+output  reg     [31:0]  cont2_key,
+output  reg     [31:0]  cont3_key,
+output  reg     [31:0]  cont4_key,
 output  reg     [31:0]  cont1_joy,
 output  reg     [31:0]  cont2_joy,
 output  reg     [31:0]  cont3_joy,
@@ -140,19 +140,19 @@ always @(posedge clk) begin
         if(rx_word_done) begin
             cnt <= cnt + 1'b1;
             case(cnt)
-            0: cont1_key <= rx_word[15:0];
+            0: cont1_key <= rx_word;
             1: cont1_joy <= rx_word;
             2: cont1_trig <= rx_word[15:0];
             
-            3: cont2_key <= rx_word[15:0];
+            3: cont2_key <= rx_word;
             4: cont2_joy <= rx_word;
             5: cont2_trig <= rx_word[15:0];
             
-            6: cont3_key <= rx_word[15:0];
+            6: cont3_key <= rx_word;
             7: cont3_joy <= rx_word;
             8: cont3_trig <= rx_word[15:0];
             
-            9: cont4_key <= rx_word[15:0];
+            9: cont4_key <= rx_word;
             10: cont4_joy <= rx_word;
             11: begin
                 cont4_trig <= rx_word[15:0];

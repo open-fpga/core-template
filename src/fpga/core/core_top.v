@@ -200,6 +200,8 @@ input   wire    [31:0]  bridge_wr_data,
 //   [13]   trig_r3
 //   [14]   face_select
 //   [15]   face_start
+//   [28:16] <unused>
+//   [31:29] type
 // joy values - unsigned
 //   [ 7: 0] lstick_x
 //   [15: 8] lstick_y
@@ -209,10 +211,10 @@ input   wire    [31:0]  bridge_wr_data,
 //   [ 7: 0] ltrig
 //   [15: 8] rtrig
 //
-input   wire    [15:0]  cont1_key,
-input   wire    [15:0]  cont2_key,
-input   wire    [15:0]  cont3_key,
-input   wire    [15:0]  cont4_key,
+input   wire    [31:0]  cont1_key,
+input   wire    [31:0]  cont2_key,
+input   wire    [31:0]  cont3_key,
+input   wire    [31:0]  cont4_key,
 input   wire    [31:0]  cont1_joy,
 input   wire    [31:0]  cont2_joy,
 input   wire    [31:0]  cont3_joy,
