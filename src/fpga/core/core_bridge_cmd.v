@@ -51,6 +51,7 @@ input   wire    [31:0]  savestate_size,
 input   wire    [31:0]  savestate_maxloadsize,
 
 output  reg             osnotify_inmenu,
+output  reg     [31:0]  osnotify_rtc,
 
 output  reg             savestate_start,        // core should detect rising edge on this,
 input   wire            savestate_start_ack,    // and then assert ack for at least 1 cycle
@@ -323,6 +324,11 @@ always @(posedge clk) begin
         16'h008F: begin
             // Data slot access all complete
             dataslot_allcomplete <= 1;
+            hstate <= ST_DONE_OK;
+        end
+        16'h0090: begin
+            // Initial real-time clock value in seconds since UNIX epoch
+            osnotify_rtc <= host_20;
             hstate <= ST_DONE_OK;
         end
         16'h00A0: begin

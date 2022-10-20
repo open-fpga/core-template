@@ -370,6 +370,7 @@ end
     wire            savestate_load_err;
     
     wire            osnotify_inmenu;
+    wire    [31:0]  osnotify_rtc; // RTC is seconds since UNIX epoch
 
 // bridge target commands
 // synchronous to clk_74a
@@ -428,6 +429,7 @@ core_bridge_cmd icb (
     .savestate_load_err     ( savestate_load_err ),
 
     .osnotify_inmenu        ( osnotify_inmenu ),
+    .osnotify_rtc           ( osnotify_rtc ),
     
     .datatable_addr         ( datatable_addr ),
     .datatable_wren         ( datatable_wren ),
