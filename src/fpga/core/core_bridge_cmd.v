@@ -40,10 +40,20 @@ input   wire            dataslot_requestread_ok,
 
 output  reg             dataslot_requestwrite,
 output  reg     [15:0]  dataslot_requestwrite_id,
+output  reg     [31:0]  dataslot_requestwrite_size,
 input   wire            dataslot_requestwrite_ack,
 input   wire            dataslot_requestwrite_ok,
 
+output  reg             dataslot_update,
+output  reg     [15:0]  dataslot_update_id,
+output  reg     [31:0]  dataslot_update_size,
+
 output  reg             dataslot_allcomplete,
+
+output  reg     [31:0]  rtc_epoch_seconds,
+output  reg     [31:0]  rtc_date_bcd,
+output  reg     [31:0]  rtc_time_bcd,
+output  reg             rtc_valid,
 
 input   wire            savestate_supported,
 input   wire    [31:0]  savestate_addr,
@@ -63,6 +73,18 @@ input   wire            savestate_load_ack,
 input   wire            savestate_load_busy,
 input   wire            savestate_load_ok,
 input   wire            savestate_load_err,
+
+input   wire            target_dataslot_read,       // rising edge triggered
+input   wire            target_dataslot_write,
+
+output  reg             target_dataslot_ack,        // asserted upon command start until completion
+output  reg             target_dataslot_done,       // asserted upon command finish until next command is issued    
+output  reg     [2:0]   target_dataslot_err,        // contains result of command execution. zero is OK
+
+input   wire    [15:0]  target_dataslot_id,         // parameters for each of the read/reload/write commands
+input   wire    [31:0]  target_dataslot_slotoffset,
+input   wire    [31:0]  target_dataslot_bridgeaddr,
+input   wire    [31:0]  target_dataslot_length,
 
 input   wire    [9:0]   datatable_addr,
 input   wire            datatable_wren,
@@ -146,27 +168,33 @@ localparam  [3:0]   ST_DONE_ERR     = 'd15;
     
 localparam  [3:0]   TARG_ST_IDLE        = 'd0;
 localparam  [3:0]   TARG_ST_READYTORUN  = 'd1;
-localparam  [3:0]   TARG_ST_DISPMSG     = 'd2;
-localparam  [3:0]   TARG_ST_SLOTREAD    = 'd3;
-localparam  [3:0]   TARG_ST_SLOTRELOAD  = 'd4;
-localparam  [3:0]   TARG_ST_SLOTWRITE   = 'd5;
-localparam  [3:0]   TARG_ST_SLOTFLUSH   = 'd6;
-localparam  [3:0]   TARG_ST_WAITRESULT  = 'd15;
+localparam  [3:0]   TARG_ST_DATASLOTOP  = 'd2;
+localparam  [3:0]   TARG_ST_WAITRESULT_RTR  = 'd14;
+localparam  [3:0]   TARG_ST_WAITRESULT_DSO  = 'd15;
     reg     [3:0]   tstate;
     
-    reg             status_setup_done_1;
-    reg             status_setup_done_queue;
+    reg             status_setup_done_1, status_setup_done_queue;
+    reg             target_dataslot_read_1, target_dataslot_read_queue;
+    reg             target_dataslot_write_1, target_dataslot_write_queue;
     
     
 initial begin
     reset_n <= 0;
     dataslot_requestread <= 0;
     dataslot_requestwrite <= 0;
+    dataslot_update <= 0;
     dataslot_allcomplete <= 0;
+    rtc_valid <= 0;
     savestate_start <= 0;
     savestate_load <= 0;
     osnotify_inmenu <= 0;
+    
     status_setup_done_queue <= 0;
+    target_dataslot_read_queue <= 0;
+    target_dataslot_write_queue <= 0;
+    target_dataslot_ack <= 0;
+    target_dataslot_done <= 0;
+    target_dataslot_err <= 0;
 end
     
 always @(posedge clk) begin
@@ -174,9 +202,19 @@ always @(posedge clk) begin
     // detect a rising edge on the input signal
     // and flag a queue that will be cleared later
     status_setup_done_1 <= status_setup_done;
+    target_dataslot_read_1 <= target_dataslot_read;
+    target_dataslot_write_1 <= target_dataslot_write;
+    
     if(status_setup_done & ~status_setup_done_1) begin
         status_setup_done_queue <= 1;
     end
+    if(target_dataslot_read & ~target_dataslot_read_1) begin
+        target_dataslot_read_queue <= 1;
+    end
+    if(target_dataslot_write & ~target_dataslot_write_1) begin
+        target_dataslot_write_queue <= 1;
+    end
+    
     
     b_datatable_wren <= 0;
     b_datatable_addr <= bridge_addr >> 2;
@@ -257,6 +295,7 @@ always @(posedge clk) begin
     
         dataslot_requestread <= 0;
         dataslot_requestwrite <= 0;
+        dataslot_update <= 0;
         savestate_start <= 0;
         savestate_load <= 0;
         
@@ -314,15 +353,32 @@ always @(posedge clk) begin
             dataslot_allcomplete <= 0;
             dataslot_requestwrite <= 1;
             dataslot_requestwrite_id <= host_20[15:0];
+            dataslot_requestwrite_size <= host_24;
             if(dataslot_requestwrite_ack) begin
                 host_resultcode <= 0;
                 if(!dataslot_requestwrite_ok) host_resultcode <= 2;
                 hstate <= ST_DONE_CODE;
             end
         end
+        16'h008A: begin
+            // Data slot update (sent on deferload marked slots only)
+            dataslot_update <= 1;
+            dataslot_update_id <= host_20[15:0];
+            dataslot_update_size <= host_24;
+            hstate <= ST_DONE_OK;
+        end
         16'h008F: begin
             // Data slot access all complete
             dataslot_allcomplete <= 1;
+            hstate <= ST_DONE_OK;
+        end
+        16'h0090: begin
+            // Real-time Clock Data
+            // user logic should detect rising edge, it is not continuously updated
+            rtc_valid <= 1;
+            rtc_epoch_seconds <= host_20;
+            rtc_date_bcd <= host_24;
+            rtc_time_bcd <= host_28;
             hstate <= ST_DONE_OK;
         end
         16'h00A0: begin
@@ -397,22 +453,63 @@ always @(posedge clk) begin
     endcase
     
     
-    
-    
     // target > host command executer
     case(tstate)
     TARG_ST_IDLE: begin
+    
+        target_dataslot_ack <= 0;
+    
         if(status_setup_done_queue) begin
             status_setup_done_queue <= 0;
             tstate <= TARG_ST_READYTORUN;
-        end
-    
+            
+        end else if(target_dataslot_read_queue) begin
+            target_dataslot_read_queue <= 0;
+            target_0[15:0] <= 16'h0180;
+            
+            target_20 <= target_dataslot_id;
+            target_24 <= target_dataslot_slotoffset;
+            target_28 <= target_dataslot_bridgeaddr;
+            target_2C <= target_dataslot_length;
+            
+            tstate <= TARG_ST_DATASLOTOP;
+            
+        end else if(target_dataslot_write_queue) begin
+            target_dataslot_write_queue <= 0;
+            target_0[15:0] <= 16'h0184;
+            
+            target_20 <= target_dataslot_id;
+            target_24 <= target_dataslot_slotoffset;
+            target_28 <= target_dataslot_bridgeaddr;
+            target_2C <= target_dataslot_length;
+            
+            tstate <= TARG_ST_DATASLOTOP;
+        end 
     end
     TARG_ST_READYTORUN: begin
         target_0 <= 32'h636D_0140;
-        tstate <= TARG_ST_WAITRESULT;
+        tstate <= TARG_ST_WAITRESULT_RTR;
     end
-    TARG_ST_WAITRESULT: begin
+    TARG_ST_DATASLOTOP: begin
+        target_0[31:16] <= 16'h636D;
+        
+        target_dataslot_done <= 0;
+        tstate <= TARG_ST_WAITRESULT_DSO;
+    end
+    TARG_ST_WAITRESULT_DSO: begin
+        if(target_0[31:16] == 16'h6275) begin
+            target_dataslot_ack <= 1;
+        end
+        if(target_0[31:16] == 16'h6F6B) begin
+            // done
+            // save result code
+            target_dataslot_err <= target_0[2:0];
+            // assert done
+            target_dataslot_done <= 1;
+            tstate <= TARG_ST_IDLE;
+        end
+    end
+    TARG_ST_WAITRESULT_RTR: begin
         if(target_0[31:16] == 16'h6F6B) begin
             // done
             tstate <= TARG_ST_IDLE;

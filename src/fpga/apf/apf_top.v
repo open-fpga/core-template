@@ -280,10 +280,10 @@ mf_ddio_bidir_12 isclk(
 
 
 // controller data (pad) controller.
-    wire    [15:0]  cont1_key;
-    wire    [15:0]  cont2_key;
-    wire    [15:0]  cont3_key;
-    wire    [15:0]  cont4_key;
+    wire    [31:0]  cont1_key;
+    wire    [31:0]  cont2_key;
+    wire    [31:0]  cont3_key;
+    wire    [31:0]  cont4_key;
     wire    [31:0]  cont1_joy;
     wire    [31:0]  cont2_joy;
     wire    [31:0]  cont3_joy;

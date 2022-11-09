@@ -200,6 +200,7 @@ input   wire    [31:0]  bridge_wr_data,
 //   [13]   trig_r3
 //   [14]   face_select
 //   [15]   face_start
+//   [31:28] type
 // joy values - unsigned
 //   [ 7: 0] lstick_x
 //   [15: 8] lstick_y
@@ -209,10 +210,10 @@ input   wire    [31:0]  bridge_wr_data,
 //   [ 7: 0] ltrig
 //   [15: 8] rtrig
 //
-input   wire    [15:0]  cont1_key,
-input   wire    [15:0]  cont2_key,
-input   wire    [15:0]  cont3_key,
-input   wire    [15:0]  cont4_key,
+input   wire    [31:0]  cont1_key,
+input   wire    [31:0]  cont2_key,
+input   wire    [31:0]  cont3_key,
+input   wire    [31:0]  cont4_key,
 input   wire    [31:0]  cont1_joy,
 input   wire    [31:0]  cont2_joy,
 input   wire    [31:0]  cont3_joy,
@@ -248,7 +249,8 @@ assign cart_pin30_pwroff_reset = 1'b0;  // hardware can control this
 assign cart_tran_pin31 = 1'bz;      // input
 assign cart_tran_pin31_dir = 1'b0;  // input
 
-// link port is input only
+// link port is unused, set to input only to be safe
+// each bit may be bidirectional in some applications
 assign port_tran_so = 1'bz;
 assign port_tran_so_dir = 1'b0;     // SO is output only
 assign port_tran_si = 1'bz;
@@ -345,10 +347,20 @@ end
 
     wire            dataslot_requestwrite;
     wire    [15:0]  dataslot_requestwrite_id;
+    wire    [31:0]  dataslot_requestwrite_size;
     wire            dataslot_requestwrite_ack = 1;
     wire            dataslot_requestwrite_ok = 1;
 
+    wire            dataslot_update;
+    wire    [15:0]  dataslot_update_id;
+    wire    [31:0]  dataslot_update_size;
+    
     wire            dataslot_allcomplete;
+
+    wire     [31:0] rtc_epoch_seconds;
+    wire     [31:0] rtc_date_bcd;
+    wire     [31:0] rtc_time_bcd;
+    wire            rtc_valid;
 
     wire            savestate_supported;
     wire    [31:0]  savestate_addr;
@@ -372,8 +384,20 @@ end
 // bridge target commands
 // synchronous to clk_74a
 
+    reg             target_dataslot_read;       
+    reg             target_dataslot_write;
 
+    wire            target_dataslot_ack;        
+    wire            target_dataslot_done;
+    wire    [2:0]   target_dataslot_err;
+
+    reg     [15:0]  target_dataslot_id;
+    reg     [31:0]  target_dataslot_slotoffset;
+    reg     [31:0]  target_dataslot_bridgeaddr;
+    reg     [31:0]  target_dataslot_length;
+    
 // bridge data slot access
+// synchronous to clk_74a
 
     wire    [9:0]   datatable_addr;
     wire            datatable_wren;
@@ -403,11 +427,21 @@ core_bridge_cmd icb (
 
     .dataslot_requestwrite      ( dataslot_requestwrite ),
     .dataslot_requestwrite_id   ( dataslot_requestwrite_id ),
+    .dataslot_requestwrite_size ( dataslot_requestwrite_size ),
     .dataslot_requestwrite_ack  ( dataslot_requestwrite_ack ),
     .dataslot_requestwrite_ok   ( dataslot_requestwrite_ok ),
 
+    .dataslot_update            ( dataslot_update ),
+    .dataslot_update_id         ( dataslot_update_id ),
+    .dataslot_update_size       ( dataslot_update_size ),
+    
     .dataslot_allcomplete   ( dataslot_allcomplete ),
 
+    .rtc_epoch_seconds      ( rtc_epoch_seconds ),
+    .rtc_date_bcd           ( rtc_date_bcd ),
+    .rtc_time_bcd           ( rtc_time_bcd ),
+    .rtc_valid              ( rtc_valid ),
+    
     .savestate_supported    ( savestate_supported ),
     .savestate_addr         ( savestate_addr ),
     .savestate_size         ( savestate_size ),
@@ -427,10 +461,22 @@ core_bridge_cmd icb (
 
     .osnotify_inmenu        ( osnotify_inmenu ),
     
+    .target_dataslot_read       ( target_dataslot_read ),
+    .target_dataslot_write      ( target_dataslot_write ),
+
+    .target_dataslot_ack        ( target_dataslot_ack ),
+    .target_dataslot_done       ( target_dataslot_done ),
+    .target_dataslot_err        ( target_dataslot_err ),
+
+    .target_dataslot_id         ( target_dataslot_id ),
+    .target_dataslot_slotoffset ( target_dataslot_slotoffset ),
+    .target_dataslot_bridgeaddr ( target_dataslot_bridgeaddr ),
+    .target_dataslot_length     ( target_dataslot_length ),
+
     .datatable_addr         ( datatable_addr ),
     .datatable_wren         ( datatable_wren ),
     .datatable_data         ( datatable_data ),
-    .datatable_q            ( datatable_q ),
+    .datatable_q            ( datatable_q )
 
 );
 

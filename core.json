@@ -7,8 +7,8 @@
             "description": "APF core template. Displays gray test screen.",
             "author": "Developer",
             "url": "https://github.com/open-fpga/core-template",
-            "version": "1.1.0",
-            "date_release": "2022-08-23"
+            "version": "1.2.0",
+            "date_release": "2022-11-05"
         },
         "framework": {
             "target_product": "Analogue Pocket",
