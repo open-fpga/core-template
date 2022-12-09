@@ -334,10 +334,13 @@ end
     wire            reset_n;                // driven by host commands, can be used as core-wide reset
     wire    [31:0]  cmd_bridge_rd_data;
     
+    wire            pll_core_locked_s;
+synch_3 s01(pll_core_locked, pll_core_locked_s, clk_74a);
+
 // bridge host commands
 // synchronous to clk_74a
-    wire            status_boot_done = pll_core_locked; 
-    wire            status_setup_done = pll_core_locked; // rising edge triggers a target command
+    wire            status_boot_done = pll_core_locked_s; 
+    wire            status_setup_done = pll_core_locked_s; // rising edge triggers a target command
     wire            status_running = reset_n; // we are running as soon as reset_n goes high
 
     wire            dataslot_requestread;
