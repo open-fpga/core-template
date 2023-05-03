@@ -76,6 +76,8 @@ input   wire            savestate_load_err,
 
 input   wire            target_dataslot_read,       // rising edge triggered
 input   wire            target_dataslot_write,
+input   wire            target_dataslot_getfile,
+input   wire            target_dataslot_openfile,
 
 output  reg             target_dataslot_ack,        // asserted upon command start until completion
 output  reg             target_dataslot_done,       // asserted upon command finish until next command is issued    
@@ -85,6 +87,10 @@ input   wire    [15:0]  target_dataslot_id,         // parameters for each of th
 input   wire    [31:0]  target_dataslot_slotoffset,
 input   wire    [31:0]  target_dataslot_bridgeaddr,
 input   wire    [31:0]  target_dataslot_length,
+
+input   wire    [31:0]  target_buffer_param_struct, // bus address of the memory region APF will fetch additional parameter struct from
+input   wire    [31:0]  target_buffer_resp_struct,  // bus address of the memory region APF will write its response struct to
+                                                    // this should be mapped by the developer, the buffer is not implemented in this file
 
 input   wire    [9:0]   datatable_addr,
 input   wire            datatable_wren,
@@ -153,8 +159,8 @@ localparam  [3:0]   ST_DONE_ERR     = 'd15;
 // target
     
     reg     [31:0]  target_0;
-    reg     [31:0]  target_4 = 'h20;
-    reg     [31:0]  target_8 = 'h40;
+    reg     [31:0]  target_4 = 'h20; // target cmd parameter data at 0x20 
+    reg     [31:0]  target_8 = 'h40; // target cmd response data at 0x40 
     
     reg     [31:0]  target_20; // parameter data
     reg     [31:0]  target_24;
@@ -176,6 +182,8 @@ localparam  [3:0]   TARG_ST_WAITRESULT_DSO  = 'd15;
     reg             status_setup_done_1, status_setup_done_queue;
     reg             target_dataslot_read_1, target_dataslot_read_queue;
     reg             target_dataslot_write_1, target_dataslot_write_queue;
+    reg             target_dataslot_getfile_1, target_dataslot_getfile_queue;
+    reg             target_dataslot_openfile_1, target_dataslot_openfile_queue;
     
     
 initial begin
@@ -192,6 +200,8 @@ initial begin
     status_setup_done_queue <= 0;
     target_dataslot_read_queue <= 0;
     target_dataslot_write_queue <= 0;
+    target_dataslot_getfile_queue <= 0;
+    target_dataslot_openfile_queue <= 0;
     target_dataslot_ack <= 0;
     target_dataslot_done <= 0;
     target_dataslot_err <= 0;
@@ -204,6 +214,8 @@ always @(posedge clk) begin
     status_setup_done_1 <= status_setup_done;
     target_dataslot_read_1 <= target_dataslot_read;
     target_dataslot_write_1 <= target_dataslot_write;
+    target_dataslot_getfile_1 <= target_dataslot_getfile;
+    target_dataslot_openfile_1 <= target_dataslot_openfile;
     
     if(status_setup_done & ~status_setup_done_1) begin
         status_setup_done_queue <= 1;
@@ -213,6 +225,12 @@ always @(posedge clk) begin
     end
     if(target_dataslot_write & ~target_dataslot_write_1) begin
         target_dataslot_write_queue <= 1;
+    end
+    if(target_dataslot_getfile & ~target_dataslot_getfile_1) begin
+        target_dataslot_getfile_queue <= 1;
+    end
+    if(target_dataslot_openfile & ~target_dataslot_openfile_1) begin
+        target_dataslot_openfile_queue <= 1;
     end
     
     
@@ -484,6 +502,24 @@ always @(posedge clk) begin
             target_2C <= target_dataslot_length;
             
             tstate <= TARG_ST_DATASLOTOP;
+            
+        end else if(target_dataslot_getfile_queue) begin
+            target_dataslot_getfile_queue <= 0;
+            target_0[15:0] <= 16'h0190;
+            
+            target_20 <= target_dataslot_id;
+            target_24 <= target_buffer_resp_struct; // pointer to the bram that will hold the response struct
+                                                    // which will contain the requested filename before command completion
+            tstate <= TARG_ST_DATASLOTOP;
+            
+        end else if(target_dataslot_openfile_queue) begin
+            target_dataslot_openfile_queue <= 0;
+            target_0[15:0] <= 16'h0192;
+            
+            target_20 <= target_dataslot_id;
+            target_24 <= target_buffer_param_struct; // pointer to the bram that will hold the parameter struct
+                                                    // which must contain the desired filename and flag/size before command execution
+            tstate <= TARG_ST_DATASLOTOP;
         end 
     end
     TARG_ST_READYTORUN: begin
@@ -494,6 +530,7 @@ always @(posedge clk) begin
         target_0[31:16] <= 16'h636D;
         
         target_dataslot_done <= 0;
+        target_dataslot_err <= 0;
         tstate <= TARG_ST_WAITRESULT_DSO;
     end
     TARG_ST_WAITRESULT_DSO: begin
